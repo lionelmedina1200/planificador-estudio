@@ -1,0 +1,86 @@
+PLANIFICADOR DE ESTUDIO (página web, con ejercicios generados por IA - Grok)
+==========================================================================
+
+CÓMO CORRERLO
+-------------
+
+1. Instalá las librerías (una sola vez):
+
+      py -m pip install -r requirements.txt
+
+   Si no podés instalar ReportLab (por ejemplo en las compus del colegio),
+   alcanza con Flask:   py -m pip install flask
+   Todo funciona igual. Al apretar "Guardar PDF" se abre la ventana de
+   imprimir del navegador: elegí "Guardar como PDF" como impresora.
+
+   Funciona con Python 3.6 o más nuevo. Para ver cuál tenés:  py --version
+
+2. Prendé el servidor:
+
+      py server.py
+
+3. Abrí el navegador en:  http://localhost:5000
+
+Para apagarlo: en la terminal apretás Ctrl+C.
+
+
+CÓMO CONECTAR LA IA (GROK)
+--------------------------
+Sin clave, todo funciona igual, pero los ejercicios son de "modo prueba".
+
+1. Entrá a https://console.x.ai, creá una cuenta y cargá crédito.
+2. En "API Keys" creá una clave nueva y copiala (empieza con "xai-").
+3. Elegí UNA de estas dos formas:
+
+   A) Archivo (la más fácil): creá un archivo llamado  clave.txt  en la misma
+      carpeta que server.py y pegá adentro SOLO la clave, sin espacios.
+
+   B) Variable de entorno, en la misma terminal donde vas a prender el servidor:
+        Windows (PowerShell):  $env:XAI_API_KEY="xai-tu-clave"
+        Mac / Linux:           export XAI_API_KEY="xai-tu-clave"
+
+4. Volvé a prender el servidor (Ctrl+C y  py server.py  de nuevo).
+   Arriba a la derecha de la página tiene que decir "IA conectada".
+
+Modelo: por defecto usa "grok-4". Si tu cuenta no lo tiene, el servidor busca
+solo otro modelo de texto disponible. Si querés uno en particular:
+   $env:XAI_MODEL="nombre-del-modelo"   (los nombres están en console.x.ai)
+
+IMPORTANTE: la clave es como una contraseña y gasta tu crédito. No la
+compartas ni subas clave.txt a GitHub (ya está en .gitignore).
+
+
+CÓMO SE USA
+-----------
+1. A la izquierda escribís la materia, elegís la fecha (o tocás "En 1 semana")
+   y vas escribiendo temas: cada vez que apretás Enter se agrega uno.
+   - Antes de agregar un tema elegís si es Fácil, Normal o Difícil.
+   - Si tocás un tema ya agregado, le cambiás la dificultad.
+   - Podés pegar varios temas juntos separados por comas.
+2. "Guardar examen". Repetís con cada examen.
+3. Elegís cuántas horas por día querés estudiar.
+4. "Armar plan". Después de la primera vez, el plan se actualiza solo cuando
+   agregás, editás o borrás un examen o cambiás las horas.
+5. "Guardar PDF" para descargarlo.
+6. En "Practicar" tocás un tema y aparecen 3 ejercicios. Las respuestas
+   están escondidas en "Ver respuesta".
+
+Los exámenes quedan guardados en el navegador: si recargás, no se pierden.
+
+
+CÓMO ARMA EL PLAN
+-----------------
+El tiempo se reparte en bloques de 30 minutos (30 min, 1 h, 1 h 30 min...).
+Cada bloque va al tema que más lo necesita: los exámenes más cercanos y los
+temas más difíciles reciben más bloques, y ningún tema queda sin estudiar.
+
+
+ARCHIVOS
+--------
+server.py              -> el servidor (conecta la página con la lógica y la IA)
+planificador.py        -> la lógica que arma el plan
+exportar_pdf.py        -> genera el PDF
+requirements.txt       -> librerías a instalar
+templates/index.html   -> la página
+static/estilos.css     -> el diseño
+static/script.js       -> lo que hacen los botones

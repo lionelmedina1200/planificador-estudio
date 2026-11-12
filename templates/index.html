@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planificador de estudio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Onest:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='estilos.css') }}">
+</head>
+<body>
+
+<header class="cabecera">
+  <div>
+    <h1>Planificador de estudio</h1>
+    <p class="bajada">Cargá tus exámenes y te armamos qué estudiar cada día, en bloques de 30 minutos.</p>
+  </div>
+  <span class="estado-ia" id="estado-ia" hidden></span>
+</header>
+
+<main class="tablero">
+
+  <!-- Columna izquierda: cargar exámenes -->
+  <aside class="columna-carga">
+    <section class="compositor" id="compositor" aria-labelledby="titulo-compositor">
+      <h2 id="titulo-compositor">Nuevo examen</h2>
+
+      <input type="text" id="campo-materia" class="campo-materia" placeholder="¿De qué materia?" autocomplete="off" aria-label="Materia">
+
+      <div class="bloque-fecha">
+        <label class="etiqueta" for="campo-fecha">Fecha del examen</label>
+        <div class="fila-fecha">
+          <input type="date" id="campo-fecha">
+          <button type="button" class="atajo" data-dias="7">En 1 semana</button>
+          <button type="button" class="atajo" data-dias="14">En 2 semanas</button>
+        </div>
+        <p class="cuenta-regresiva" id="cuenta-regresiva" aria-live="polite"></p>
+      </div>
+
+      <div class="bloque-temas">
+        <span class="etiqueta" id="etiqueta-temas">Temas</span>
+        <div class="caja-temas" id="caja-temas">
+          <input type="text" id="campo-tema" placeholder="Escribí un tema y apretá Enter" autocomplete="off" aria-labelledby="etiqueta-temas">
+        </div>
+        <div class="fila-dificultad">
+          <span class="etiqueta-chica" id="etiqueta-dificultad">Dificultad del próximo tema</span>
+          <div class="segmentado" role="radiogroup" aria-labelledby="etiqueta-dificultad" id="selector-dificultad">
+            <button type="button" role="radio" data-dificultad="baja" aria-checked="false">Fácil</button>
+            <button type="button" role="radio" data-dificultad="media" aria-checked="true">Normal</button>
+            <button type="button" role="radio" data-dificultad="alta" aria-checked="false">Difícil</button>
+          </div>
+        </div>
+        <p class="ayuda">Tocá un tema ya agregado para cambiarle la dificultad.</p>
+      </div>
+
+      <div class="acciones-compositor">
+        <button type="button" class="boton boton-tinta" id="boton-guardar-examen">Guardar examen</button>
+        <button type="button" class="boton boton-texto" id="boton-cancelar-edicion" hidden>Cancelar</button>
+      </div>
+    </section>
+
+    <section class="horas" aria-labelledby="etiqueta-horas">
+      <div class="horas-cabecera">
+        <label class="etiqueta" id="etiqueta-horas" for="campo-horas">Horas de estudio por día</label>
+        <output id="salida-horas" for="campo-horas">3 h</output>
+      </div>
+      <input type="range" id="campo-horas" min="1" max="8" step="0.5" value="3">
+      <p class="ayuda" id="detalle-horas">6 bloques de 30 minutos</p>
+    </section>
+  </aside>
+
+  <!-- Columna derecha: exámenes, plan y práctica -->
+  <div class="columna-plan">
+
+    <section class="seccion" id="seccion-examenes" aria-labelledby="titulo-examenes">
+      <h2 id="titulo-examenes">Tus exámenes</h2>
+      <ul class="fichas" id="lista-examenes"></ul>
+    </section>
+
+    <section class="seccion" id="seccion-plan" aria-labelledby="titulo-plan">
+      <div class="seccion-cabecera">
+        <h2 id="titulo-plan">Plan de estudio</h2>
+        <div class="acciones-plan">
+          <button type="button" class="boton boton-tinta" id="boton-generar">Armar plan</button>
+          <button type="button" class="boton boton-borde" id="boton-pdf" disabled>Guardar PDF</button>
+        </div>
+      </div>
+      <div id="plan" class="plan">
+        <p class="vacio">Cuando tengas al menos un examen cargado, apretá “Armar plan”.</p>
+      </div>
+    </section>
+
+    <section class="seccion" id="seccion-practica" aria-labelledby="titulo-practica">
+      <h2 id="titulo-practica">Practicar</h2>
+      <p class="ayuda">Elegí un tema y te generamos 3 ejercicios de su nivel, con las respuestas escondidas.</p>
+      <div class="temas-practica" id="temas-practica"></div>
+      <div id="resultado-ejercicios" class="resultado-ejercicios"></div>
+    </section>
+
+  </div>
+</main>
+
+<div class="aviso" id="aviso" role="status" aria-live="polite"></div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
