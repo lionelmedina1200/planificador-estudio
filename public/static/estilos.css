@@ -224,6 +224,7 @@ button { font: inherit; color: inherit; }
 }
 
 .cuenta-regresiva.mal { color: #FFB4AA; }
+.cuenta-regresiva:empty { display: none; }
 
 /* Caja de temas con chips */
 .caja-temas {
@@ -772,6 +773,10 @@ button { font: inherit; color: inherit; }
 }
 
 .aviso.visible { transform: translate(-50%, 0); opacity: 1; }
+
+@supports (bottom: env(safe-area-inset-bottom)) {
+  .aviso { bottom: calc(1.5rem + env(safe-area-inset-bottom)); }
+}
 .aviso.error { background: var(--rojo); }
 
 /* ---------- Animaciones ---------- */
@@ -792,18 +797,65 @@ button { font: inherit; color: inherit; }
   }
 }
 
-/* ---------- Celular ---------- */
+/* ---------- Tablet y celular ---------- */
 
 @media (max-width: 860px) {
   .tablero { grid-template-columns: 1fr; }
   .columna-carga { position: static; }
+  .cabecera { padding-bottom: 1.25rem; }
 }
 
-@media (max-width: 520px) {
-  .cabecera { padding-top: 2rem; }
-  .seccion, .compositor { padding: 1.15rem; }
-  .dia { grid-template-columns: 1fr; gap: 0.25rem; }
-  .bloque { flex-wrap: wrap; }
+@media (max-width: 600px) {
+  .cabecera { padding: 1.75rem 1rem 1rem; }
+  .tablero { padding: 0 0.75rem 3rem; gap: 1rem; }
+  .columna-plan { gap: 1rem; }
+  .seccion, .compositor { padding: 1.15rem; border-radius: 14px; }
+  .horas { padding: 1rem 1.15rem; border-radius: 14px; }
+  .seccion h2 { font-size: 1.3rem; }
+  .campo-materia { font-size: 1.6rem; }
+
+  /* Fecha: atajos repartidos a lo ancho */
+  .atajo { flex: 1 1 0; }
+
+  /* Selector de dificultad a lo ancho */
+  .fila-dificultad { flex-direction: column; align-items: stretch; gap: 0.4rem; }
+  .segmentado { display: flex; }
+  .segmentado button { flex: 1; }
+
+  /* Botones del plan, uno al lado del otro */
+  .acciones-plan { width: 100%; }
+  .acciones-plan .boton { flex: 1; padding-left: 0.75rem; padding-right: 0.75rem; white-space: nowrap; }
+  .aviso { border-radius: 14px; }
+
+  /* Exámenes en una columna */
+  .fichas { grid-template-columns: 1fr; }
+
+  /* Plan: la fecha arriba en una línea, y la duración a la derecha del tema */
+  .dia { grid-template-columns: 1fr; gap: 0.35rem; padding: 0.9rem 0; }
+  .dia-fecha { display: flex; align-items: baseline; gap: 0.5rem; }
+  .bloques { gap: 0.55rem; }
+  .bloque {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    column-gap: 0.75rem;
+  }
+  .bloque-materia { display: block; margin: 0.1rem 0 0; }
+
+  .panel-ejercicios { padding: 1rem; }
+  .ejercicios { padding-left: 1.2rem; }
+}
+
+/* Pantallas táctiles: botones más fáciles de tocar y sin zoom al escribir */
+@media (pointer: coarse) {
+  input, select, .caja-temas input, .fila-fecha input[type="date"] { font-size: 16px; }
+  .atajo, .segmentado button { min-height: 40px; }
+  .boton { min-height: 44px; }
+  .chip-tema .chip-cuerpo { min-height: 36px; }
+  .chip-tema .chip-quitar { min-width: 36px; min-height: 36px; }
+  .enlace { padding: 0.5rem 0; }
+  .boton-practica { min-height: 40px; }
+  .ejercicios summary { padding: 0.35rem 0; }
 }
 
 /* ---------- Imprimir / Guardar como PDF desde el navegador ---------- */
