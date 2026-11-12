@@ -13,26 +13,29 @@ import json
 import os
 import urllib.error
 import urllib.request
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from flask import Flask, render_template, request, jsonify, send_file
 
 from planificador import Examen, Tema, generar_plan
 from exportar_pdf import exportar_plan_a_pdf, HAY_REPORTLAB
 
-app = Flask(__name__)
-
 CARPETA = os.path.dirname(os.path.abspath(__file__))
+
+# Los archivos de diseño (CSS y JS) están en public/static:
+#  - en tu compu los sirve Flask,
+#  - en Vercel los sirve directamente su CDN desde la carpeta public/.
+app = Flask(__name__, static_folder=os.path.join(CARPETA, "public", "static"), static_url_path="/static")
 
 
 def leer_clave_api():
     """
-    Busca la clave de Grok (xAI) en este orden:
-      1) variable de entorno XAI_API_KEY
+    Busca la clave de la IA (Groq, OpenRouter o Grok) en este orden:
+      1) variable de entorno IA_CLAVE
       2) archivo clave.txt al lado de server.py
     Si no hay ninguna, el programa usa el modo de prueba (sin IA).
     """
-    clave = os.environ.get("XAI_API_KEY", "").strip()
+    clave = (os.environ.get("IA_CLAVE") or os.environ.get("XAI_API_KEY") or "").strip()
     if clave:
         return clave
     ruta = os.path.join(CARPETA, "clave.txt")
@@ -43,8 +46,35 @@ def leer_clave_api():
 
 
 CLAVE_API = leer_clave_api()
-MODELO_IA = os.environ.get("XAI_MODEL", "grok-4")
-URL_BASE_IA = "https://api.x.ai/v1"
+
+# Proveedores de IA que funcionan igual (formato "compatible con OpenAI").
+# Se elige solo según cómo empieza la clave:
+#   gsk_    -> Groq        (GRATIS, sin tarjeta)  https://console.groq.com
+#   sk-or-  -> OpenRouter  (tiene modelos gratis) https://openrouter.ai
+#   xai-    -> Grok / xAI  (pago)                 https://console.x.ai
+PROVEEDORES = {
+    "groq": {"nombre": "Groq", "url": "https://api.groq.com/openai/v1",
+             "modelo": "llama-3.3-70b-versatile"},
+    "openrouter": {"nombre": "OpenRouter", "url": "https://openrouter.ai/api/v1",
+                   "modelo": "openrouter/free"},
+    "xai": {"nombre": "Grok", "url": "https://api.x.ai/v1", "modelo": "grok-4"},
+}
+
+
+def elegir_proveedor(clave):
+    elegido = os.environ.get("IA_PROVEEDOR", "").strip().lower()
+    if elegido in PROVEEDORES:
+        return elegido
+    if clave.startswith("sk-or-"):
+        return "openrouter"
+    if clave.startswith("xai-"):
+        return "xai"
+    return "groq"
+
+
+PROVEEDOR = PROVEEDORES[elegir_proveedor(CLAVE_API)]
+URL_BASE_IA = PROVEEDOR["url"]
+MODELO_IA = os.environ.get("IA_MODELO") or os.environ.get("XAI_MODEL") or PROVEEDOR["modelo"]
 
 
 @app.route("/")
@@ -55,7 +85,7 @@ def index():
 @app.route("/api/estado")
 def api_estado():
     """Le avisa a la página si la IA está conectada y si el PDF directo está disponible."""
-    return jsonify({"ia": bool(CLAVE_API), "pdf": HAY_REPORTLAB})
+    return jsonify({"ia": bool(CLAVE_API), "proveedor": PROVEEDOR["nombre"], "pdf": HAY_REPORTLAB})
 
 
 @app.route("/api/generar", methods=["POST"])
@@ -90,7 +120,7 @@ def api_generar():
     if not examenes:
         return jsonify({"error": "Cargá al menos un examen."}), 400
 
-    plan = generar_plan(examenes, date.today(), horas_por_dia)
+    plan = generar_plan(examenes, fecha_de_hoy(datos.get("hoy")), horas_por_dia)
 
     return jsonify({"plan": [
         {
@@ -103,6 +133,20 @@ def api_generar():
         }
         for fila in plan
     ]})
+
+
+def fecha_de_hoy(hoy_texto):
+    """
+    Usa la fecha de la compu del usuario (la manda la página), porque el
+    servidor en internet puede estar en otra zona horaria. Si no llega o es
+    rara (más de un día de diferencia), usa la del servidor.
+    """
+    servidor = date.today()
+    try:
+        hoy = datetime.strptime(hoy_texto, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return servidor
+    return hoy if abs(hoy - servidor) <= timedelta(days=1) else servidor
 
 
 @app.route("/api/pdf", methods=["POST"])
@@ -125,7 +169,7 @@ def api_pdf():
 
 
 # ---------------------------------------------------------------
-# Ejercicios: con IA (Grok) si hay clave, o en modo de prueba si no
+# Ejercicios: con IA si hay clave, o en modo de prueba si no
 # ---------------------------------------------------------------
 
 def generar_ejercicios_locales(materia, tema, dificultad):
@@ -157,7 +201,7 @@ def generar_ejercicios_locales(materia, tema, dificultad):
 
 
 def _pedido_ia(ruta, cuerpo=None):
-    """Hace un pedido a la API de xAI usando solo urllib (viene con Python)."""
+    """Hace un pedido a la API de IA usando solo urllib (viene con Python)."""
     pedido = urllib.request.Request(
         URL_BASE_IA + ruta,
         data=json.dumps(cuerpo).encode("utf-8") if cuerpo is not None else None,
@@ -174,18 +218,20 @@ def _pedido_ia(ruta, cuerpo=None):
 
 def buscar_modelo_disponible():
     """
-    Le pregunta a xAI qué modelos tiene tu cuenta y elige uno de texto.
+    Le pregunta al proveedor qué modelos tiene tu cuenta y elige uno de texto.
     Se usa solo si el modelo configurado no existe.
     """
     datos = _pedido_ia("/models")
     ids = [m.get("id", "") for m in datos.get("data", [])]
-    de_texto = [i for i in ids if i.startswith("grok") and not any(
-        palabra in i for palabra in ("image", "vision", "imagine", "video"))]
+    descartar = ("image", "vision", "imagine", "video", "whisper", "tts", "guard", "embed", "audio")
+    de_texto = [i for i in ids if not any(palabra in i.lower() for palabra in descartar)]
+    preferidos = [i for i in de_texto if any(p in i for p in ("llama-3.3-70b", "grok", ":free"))]
+    de_texto = preferidos or de_texto
     return de_texto[0] if de_texto else None
 
 
 def pedir_ejercicios_a_la_ia(prompt):
-    """Devuelve el texto que responde Grok. Si el modelo no existe, busca otro solo."""
+    """Devuelve el texto que responde la IA. Si el modelo no existe, busca otro solo."""
     global MODELO_IA
     mensajes = [{"role": "user", "content": prompt}]
     try:
@@ -235,9 +281,9 @@ Escribí en español rioplatense, en texto plano (sin asteriscos, sin # ni otros
         if error.code in (401, 403):
             mensaje = "La clave de API no es válida o no tiene permisos. Revisá que esté bien copiada."
         elif error.code in (400, 404):
-            mensaje = "El modelo de IA no está disponible en tu cuenta. Configurá otro en XAI_MODEL."
+            mensaje = "El modelo de IA no está disponible en tu cuenta. Configurá otro en IA_MODELO."
         elif error.code == 429:
-            mensaje = "Se acabó el crédito o hiciste muchos pedidos seguidos. Esperá un poco y probá de nuevo."
+            mensaje = "Llegaste al límite de pedidos gratis. Esperá un minuto y probá de nuevo."
         else:
             mensaje = f"La IA devolvió un error ({error.code})."
         return jsonify({"error": mensaje}), 502
@@ -250,4 +296,8 @@ Escribí en español rioplatense, en texto plano (sin asteriscos, sin # ni otros
 
 
 if __name__ == "__main__":
+    if CLAVE_API:
+        print(f"[IA] Usando {PROVEEDOR['nombre']} con el modelo {MODELO_IA}")
+    else:
+        print("[IA] Sin clave: los ejercicios funcionan en modo prueba")
     app.run(debug=True)
